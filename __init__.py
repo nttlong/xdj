@@ -6,6 +6,7 @@ Package này dùng để mở rộng open edx app (dạng micro app)
 __apps__={}
 __register_apps__ = {}
 __controllers__=[]
+from . controllers import Model
 def create(urlpatterns):
     """
     Tạp app
@@ -67,8 +68,18 @@ def load_apps(path_to_app_dir,urlpatterns=None):
         if not hasattr(xdj.apps,item):
             setattr(xdj.apps,item, imp.new_module("xdj.apps.{0}".format(item)))
         app_settings = imp.load_source("xdj.apps.{0}.settings".format(item),os.sep.join([path_to_app_dir,item,"settings.py"]))
+        if not hasattr(app_settings,"app_name"):
+            raise Exception("'{0}' was not found in '{1}'".format(
+                "app_name",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
         if not hasattr(app_settings,"on_authenticate"):
             raise Exception("'{0}' was not found in '{1}'".format(
+                "on_authenticate",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+        if not callable(app_settings.on_authenticate):
+            raise Exception("{0} in {1} must be a function with one param".format(
                 "on_authenticate",
                 os.sep.join([path_to_app_dir, item, "settings.py"])
             ))
@@ -77,6 +88,39 @@ def load_apps(path_to_app_dir,urlpatterns=None):
                 "host_dir",
                 os.sep.join([path_to_app_dir, item, "settings.py"])
             ))
+        if not type(app_settings.host_dir) in [str,unicode]:
+            raise Exception(
+                "{0} in {3} mut be in {1}, not is {2}".format(
+                    "host_dir",
+                    [str,unicode],
+                    app_settings.host_dir,
+                    os.sep.join([path_to_app_dir, item, "settings.py"])
+                )
+            )
+        if not hasattr(app_settings,"on_get_language_resource_item"):
+            raise Exception("'{0}' was not found in '{1}'".format(
+                "on_get_language_resource_item",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+        if not callable(app_settings.on_get_language_resource_item):
+            raise Exception("'{0}' in '{1}' must be a function like bellow\n"
+                            "on_get_language_resource_item(language,appname,view,key,value)".format(
+                "on_get_language_resource_item",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+        if not hasattr(app_settings,"rel_login_url"):
+            raise Exception("'{0}' was not found in '{1}'".format(
+                "rel_login_url",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+        import inspect
+        if inspect.getargspec(app_settings.on_get_language_resource_item).args.__len__()<4:
+            raise Exception("'{0}' in '{1}' must be a function like bellow\n"
+                            "on_get_language_resource_item(language,appname,view,key,value)".format(
+                "on_get_language_resource_item",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+
         _app=getattr(xdj.apps,item)
         if not hasattr(_app,"settings"):
             setattr(_app,"settings",app_settings)
@@ -89,6 +133,12 @@ def load_apps(path_to_app_dir,urlpatterns=None):
             controller_instance=__controllers__[__controllers__.__len__()-1].instance
             controller_instance.app_dir = os.sep.join([path_to_app_dir,item])
             controller_instance.host_dir=app_settings.host_dir
+            controller_instance.app_name=app_settings.app_name
+            controller_instance.on_authenticate=app_settings.on_authenticate
+            controller_instance.rel_login_url = app_settings.rel_login_url
+            controller_instance.settings = app_settings
+            from . controllers import Res
+            controller_instance.res= Res(app_settings.on_get_language_resource_item,controller_instance.app_name,controller_instance.template)
 
             """
             # self.controllerClass()

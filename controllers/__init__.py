@@ -1,10 +1,199 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+ ____     _  ____  _      _____ ____
+/  _ \   / |/  _ \/ \  /|/  __//  _ \
+| | \|   | || / \|| |\ ||| |  _| / \|
+| |_/|/\_| || |-||| | \||| |_//| \_/|
+\____/\____/\_/ \|\_/  \|\____\\____/
 
+
+"""
+__lang_cache__ ={}
+import threading
+lock = threading.Lock()
+class Res(object):
+    """
+    This class sever for language resource item getter with three level
+    1- Global:The item apply at global could be access for all application
+    2- Application:The item apply at application could be access for all view in application
+    3- View:The item apply at view could be access for specific view in application
+    """
+    def __init__(self,on_get_lang_item,app_name,view_name):
+        if app_name==None:
+            raise Exception("app_name can not be None")
+        self.app_name=app_name
+        self.view_name=view_name
+        self.on_get_lang_item=on_get_lang_item
+    def g(self,key,value=None):
+        """
+        Get global language item resource
+        :param key:
+        :param value:
+        :return:
+        """
+        from django.utils import translation
+
+        if value==None:
+            key = key.rstrip(" ").lstrip(" ")
+            value=key
+        key=key.lower()
+        _key="lang={0};app={1};view={2};key={3}".format(
+            translation.get_language(),
+            "-",
+            "-",
+            key
+        )
+        if not __lang_cache__.has_key(_key):
+            try:
+                lock.acquire()
+                __lang_cache__[key]=self.on_get_lang_item(translation.get_language(),"-","-",key,value)
+                if type(__lang_cache__[_key]) not in [str,unicode]:
+                    raise Exception("{0} in {1} must return 'str' or 'unicode' value".format(
+                        "on_get_language_resource_item",
+                        self.on_get_lang_item.func_code.co_filename
+                    ))
+                lock.release()
+                return __lang_cache__[_key]
+            except Exception as ex:
+                lock.release()
+                raise ex
+        else:
+            return __lang_cache__[_key]
+    def a(self,key,value=None):
+        """
+        Get application language resource
+        :param key:
+        :param value:
+        :return:
+        """
+        from django.utils import translation
+
+        if value == None:
+            key = key.rstrip(" ").lstrip(" ")
+            value = key
+        key = key.lower()
+        _key = "lang={0};app={1};view={2};key={3}".format(
+            translation.get_language(),
+            self.app_name,
+            "-",
+            key
+        )
+        if not __lang_cache__.has_key(_key):
+            try:
+                lock.acquire()
+                __lang_cache__[_key] = self.on_get_lang_item(translation.get_language(), self.app_name, "-", key, value)
+                if type(__lang_cache__[_key]) not in [str,unicode]:
+                    raise Exception("{0} in {1} must return 'str' or 'unicode' value".format(
+                        "on_get_language_resource_item",
+                        self.on_get_lang_item.func_code.co_filename
+                    ))
+                lock.release()
+                return __lang_cache__[_key]
+            except Exception as ex:
+                lock.release()
+                raise ex
+        else:
+            return __lang_cache__[_key]
+    def v(self,key,value=None):
+        """
+        Get View Item reources
+        :param key:
+        :param value:
+        :return:
+        """
+        from django.utils import translation
+        if value == None:
+            key = key.rstrip(" ").lstrip(" ")
+            value = key
+        key = key.lower()
+        _key = "lang={0};app={1};view={2};key={3}".format(
+            translation.get_language(),
+            self.app_name,
+            self.view_name,
+            key
+        )
+        if not __lang_cache__.has_key(_key):
+            try:
+                lock.acquire()
+                __lang_cache__[_key] = self.on_get_lang_item(translation.get_language(), self.app_name, self.view_name, key, value)
+                if type(__lang_cache__[_key]) not in [str,unicode]:
+                    raise Exception("{0} in {1} must return 'str' or 'unicode' value".format(
+                        "on_get_language_resource_item",
+                        self.on_get_lang_item.func_code.co_filename
+                    ))
+
+                lock.release()
+                return __lang_cache__[_key]
+            except Exception as ex:
+                lock.release()
+                raise ex
+        else:
+            return __lang_cache__[_key]
+    def __floordiv__(self, other):
+        """
+        Get global application resource at html template can be use _//"My label"
+        :param other:
+        :return:
+        """
+        if isinstance(other,tuple):
+            if other.__len__()>1:
+                return self.g(other[0],other[1])
+            elif other.__len__()>0:
+                return self.g(other[0])
+        elif type(other) in [str,unicode]:
+            return  self.g(other)
+    def __gt__(self, other):
+        """
+        Get Language resource at view at html template can be use _>"My Lable"
+        :param other:
+        :return:
+        """
+        if isinstance(other,tuple):
+            if other.__len__()>1:
+                return self.v(other[0],other[1])
+            elif other.__len__()>0:
+                return self.v(other[0])
+        elif type(other) in [str,unicode]:
+            return  self.v(other)
+    def __rshift__(self, other):
+        """
+        Get application resource at template can be use _>>"My lable"
+        :param other:
+        :return:
+        """
+        if isinstance(other,tuple):
+            if other.__len__()>1:
+                return self.a(other[0],other[1])
+            elif other.__len__()>0:
+                return self.a(other[0])
+        elif type(other) in [str,unicode]:
+            return  self.a(other)
+class PostData(object):
+    pass
+class ModelUser(object):
+    def __init__(self):
+        self.username=""
+        self.is_staff=False
+        self.is_superuser=False
+        self.is_active=False
+    def is_anonymous(self):
+        return
 class Model(object):
     def __init__(self):
-        self.request=None
-        self.response=None
+        self.request = None
+        self.response = None
+        self.absUrl = None
+        self.appUrl = None
+        self.static = None
+        self.redirect = None
+        self.user= ModelUser()
+        self.csrf_token = None
+        self.post_data= PostData();
+        self.settings=None
+
+    def debugger(self):
+        print "debugger"
 class __controller_wrapper__(object):
     """
     Controllwer wrapper class
@@ -37,41 +226,63 @@ class BaseController(object):
         self.app_dir=None
         self.url=None
         self.template=None
-    def init_from_file_path(self,filePath):
-        """
-        Hàm này khởi tạo đường dẫn cho app
-        :param filePath:
-        :return:
-        """
-        import os
-        self.app_dir= os.path.dirname(os.path.dirname(filePath))
-        """
-        Thực tế là chỉ cần lấy thư mục cha của thư mục cha của file
-        """
+        self.on_get_language_resource_item=None
+        self.on_authenticate = None
+        self.rel_login_url=None
     def __view_exec__(self,request):
+        from django.shortcuts import redirect
+        from django.core.context_processors import csrf
+
+
+
         model=Model();
         model.request=request
+        model.currentUrl=request.build_absolute_uri()
+        model.absUrl=model.currentUrl[0:model.currentUrl.__len__()-request.path.__len__()]
+        model.appUrl=model.absUrl+"/"+self.host_dir
+        model.static=model.appUrl+"/static"
+        model.redirect=redirect
+        model._ = self.res
+        model.user=request.user
+        model.csrf_token =  csrf(request)["csrf_token"]
+        model.settings =self.settings
+        if request.build_absolute_uri(self.rel_login_url).lower()!=model.currentUrl.lower():
+            if not self.on_authenticate(model):
+
+                return redirect(model.appUrl+"/"+self.rel_login_url)
+
+
 
         if request.method == 'GET':
             return self.on_get(model)
         if request.method == 'POST':
+            model.post_data.__dict__.update(
+                request._get_post()
+            )
             return self.on_post(model)
     def render(self,model):
-        from django.http import HttpResponse
-        import os
-        import sys
-        from mako.template import Template
-        from mako.lookup import TemplateLookup
-        viewpath=os.sep.join([self.app_dir,"views"])
+        if isinstance(model,Model):
+            from django.http import HttpResponse
+            import os
+            import sys
+            from mako.template import Template
+            from mako.lookup import TemplateLookup
+            viewpath=os.sep.join([self.app_dir,"views"])
 
-        ret_res = None
-        mylookup = TemplateLookup(directories=[viewpath],
-                                  default_filters=['decode.utf8'],
-                                  input_encoding='utf-8',
-                                  output_encoding='utf-8',
-                                  encoding_errors='replace',
+            ret_res = None
+            mylookup = TemplateLookup(directories=[viewpath],
+                                      default_filters=['decode.utf8'],
+                                      input_encoding='utf-8',
+                                      output_encoding='utf-8',
+                                      encoding_errors='replace',
 
-                                  )
-        ret_res = mylookup.get_template(self.template).render(**model)
-        return HttpResponse(ret_res)
+                                      )
+            d=model.__dict__
+            ret_res = mylookup.get_template(self.template).render(**d)
+            return HttpResponse(ret_res)
+        else:
+            raise Exception("{0} is not instance of {1}".format(
+                type(model),
+                Model
+            ))
 
