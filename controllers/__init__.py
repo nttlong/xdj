@@ -33,6 +33,7 @@ class Res(object):
         :return:
         """
         from django.utils import translation
+        from django.utils.html import escape
 
         if value==None:
             key = key.rstrip(" ").lstrip(" ")
@@ -47,7 +48,7 @@ class Res(object):
         if not __lang_cache__.has_key(_key):
             try:
                 lock.acquire()
-                __lang_cache__[key]=self.on_get_lang_item(translation.get_language(),"-","-",key,value)
+                __lang_cache__.update({_key:self.on_get_lang_item(translation.get_language(),"-","-",key,value)})
                 if type(__lang_cache__[_key]) not in [str,unicode]:
                     raise Exception("{0} in {1} must return 'str' or 'unicode' value".format(
                         "on_get_language_resource_item",
@@ -68,6 +69,7 @@ class Res(object):
         :return:
         """
         from django.utils import translation
+        from django.utils.html import escape
 
         if value == None:
             key = key.rstrip(" ").lstrip(" ")
@@ -82,7 +84,7 @@ class Res(object):
         if not __lang_cache__.has_key(_key):
             try:
                 lock.acquire()
-                __lang_cache__[_key] = self.on_get_lang_item(translation.get_language(), self.app_name, "-", key, value)
+                __lang_cache__.update({_key: self.on_get_lang_item(translation.get_language(), self.app_name, "-", key, value)})
                 if type(__lang_cache__[_key]) not in [str,unicode]:
                     raise Exception("{0} in {1} must return 'str' or 'unicode' value".format(
                         "on_get_language_resource_item",
@@ -103,6 +105,7 @@ class Res(object):
         :return:
         """
         from django.utils import translation
+        from django.utils.html import escape
         if value == None:
             key = key.rstrip(" ").lstrip(" ")
             value = key
@@ -116,7 +119,7 @@ class Res(object):
         if not __lang_cache__.has_key(_key):
             try:
                 lock.acquire()
-                __lang_cache__[_key] = self.on_get_lang_item(translation.get_language(), self.app_name, self.view_name, key, value)
+                __lang_cache__.update({_key:self.on_get_lang_item(translation.get_language(), self.app_name, self.view_name, key, value)})
                 if type(__lang_cache__[_key]) not in [str,unicode]:
                     raise Exception("{0} in {1} must return 'str' or 'unicode' value".format(
                         "on_get_language_resource_item",
@@ -232,7 +235,8 @@ class BaseController(object):
     def __view_exec__(self,request):
         from django.shortcuts import redirect
         from django.core.context_processors import csrf
-
+        from django.http import HttpResponse
+        from django.core import serializers
 
 
         model=Model();
@@ -256,10 +260,25 @@ class BaseController(object):
         if request.method == 'GET':
             return self.on_get(model)
         if request.method == 'POST':
-            model.post_data.__dict__.update(
-                request._get_post()
-            )
-            return self.on_post(model)
+            if not request.META.has_key("HTTP_AJAX_POST"):
+                model.post_data.__dict__.update(
+                    request._get_post()
+                )
+                return self.on_post(model)
+            else:
+                try:
+                    from xdj import JSON
+                    model.post_data.__dict__.update(JSON.from_json(request.body))
+                    ret = getattr(self,request.META["HTTP_AJAX_POST"])(model)
+
+                    json_data = JSON.to_json(ret)
+                    return HttpResponse(json_data, content_type="application/json")
+                except AttributeError as ex:
+                    raise Exception("{0} was not found in {1}".format(
+                        request.META["HTTP_AJAX_POST"],
+                        self.on_get.im_func.func_code.co_filename
+                    ))
+
     def render(self,model):
         if isinstance(model,Model):
             from django.http import HttpResponse
