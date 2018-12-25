@@ -49,7 +49,10 @@ def create(urlpatterns):
     return urlpatterns
 from . controllers import BaseController,Controller
 
-def load_apps(path_to_app_dir,urlpatterns):
+def load_apps(path_to_app_dir,urlpatterns=None):
+    import xdj
+    if urlpatterns==None:
+        urlpatterns=()
     import os
     import sys
     import imp
@@ -59,14 +62,33 @@ def load_apps(path_to_app_dir,urlpatterns):
     lst_sub_dirs = get_all_sub_dir()
     for item in lst_sub_dirs:
         controller_dir = os.sep.join([path_to_app_dir,item,"controllers"])
-        app_settings = imp.load_source("django.ext_apps.{0}.settings".format(item),os.sep.join([path_to_app_dir,item,"settings.py"]))
+        if not hasattr(xdj,"apps"):
+            setattr(xdj,"apps",imp.new_module("xdj.apps"))
+        if not hasattr(xdj.apps,item):
+            setattr(xdj.apps,item, imp.new_module("xdj.apps.{0}".format(item)))
+        app_settings = imp.load_source("xdj.apps.{0}.settings".format(item),os.sep.join([path_to_app_dir,item,"settings.py"]))
+        if not hasattr(app_settings,"on_authenticate"):
+            raise Exception("'{0}' was not found in '{1}'".format(
+                "on_authenticate",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+        if not hasattr(app_settings,"host_dir"):
+            raise Exception("'{0}' was not found in '{1}'".format(
+                "host_dir",
+                os.sep.join([path_to_app_dir, item, "settings.py"])
+            ))
+        _app=getattr(xdj.apps,item)
+        if not hasattr(_app,"settings"):
+            setattr(_app,"settings",app_settings)
+
         sys.path.append(controller_dir)
         files = os.listdir(controller_dir)
         for file in files:
             controller_file = os.sep.join([controller_dir,file])
             m = imp.load_source("{0}.{1}".format(item,file.split('.')[0]),controller_file)
             controller_instance=__controllers__[__controllers__.__len__()-1].instance
-            controller_instance.app_dir = path_to_app_dir
+            controller_instance.app_dir = os.sep.join([path_to_app_dir,item])
+            controller_instance.host_dir=app_settings.host_dir
 
             """
             # self.controllerClass()
@@ -76,7 +98,7 @@ def load_apps(path_to_app_dir,urlpatterns):
                 raise Exception("{0} do not have 'app_dir'".format(self.controllerClass))
             """
             x=1
-        print files
+        return create(urlpatterns)
 
 
 
