@@ -212,14 +212,43 @@ class __controller_wrapper__(object):
             self.controllerClass=args[0]
             self.instance =BaseController.__new__(self.controllerClass)
             super(self.controllerClass, self.instance).__init__()
+            self.instance.__init__()
             self.instance.url=self.url
             self.instance.template = self.template
+            self.instance.sub_pages = [v for k, v in self.controllerClass.__dict__.items() if hasattr(v, "is_sub_page")]
+            for item in self.instance.sub_pages:
+                item.owner=self.instance
+                def exec_request_get(request):
+                    model = item.owner.create_client_model(request)
+                    return item.owner.render_with_template(model,item.template)
+                item.exec_request_get=exec_request_get
+
 
             xdj.__controllers__.append(self)
         else:
             raise Exception("{0} mus be inherit from {1}".format(self.controllerClass,BaseController))
 
+def __createModelFromRequest__(request,rel_login_url,res,host_dir,on_authenticate,settings):
+    from django.shortcuts import redirect
+    from django.core.context_processors import csrf
+    from django.http import HttpResponse
+    from django.core import serializers
 
+    model = Model();
+    model.request = request
+    model.currentUrl = request.build_absolute_uri()
+    model.absUrl = model.currentUrl[0:model.currentUrl.__len__() - request.path.__len__()]
+    model.appUrl = model.absUrl + "/" + host_dir
+    model.static = model.appUrl + "/static"
+    model.redirect = redirect
+    model._ = res
+    model.user = request.user
+    model.csrf_token = csrf(request)["csrf_token"]
+    model.settings = settings
+    if request.build_absolute_uri(rel_login_url).lower() != model.currentUrl.lower():
+        if not on_authenticate(model):
+            return redirect(model.appUrl + "/" + rel_login_url)
+    return model
 def Controller(*args,**kwargs):
     ret = __controller_wrapper__(*args,**kwargs)
     return ret.wrapper
@@ -232,30 +261,14 @@ class BaseController(object):
         self.on_get_language_resource_item=None
         self.on_authenticate = None
         self.rel_login_url=None
+    def create_client_model(self,request):
+        model = __createModelFromRequest__(
+            request, self.rel_login_url, self.res, self.host_dir, self.on_authenticate, self.settings
+        )
+        return model
     def __view_exec__(self,request):
-        from django.shortcuts import redirect
-        from django.core.context_processors import csrf
         from django.http import HttpResponse
-        from django.core import serializers
-
-
-        model=Model();
-        model.request=request
-        model.currentUrl=request.build_absolute_uri()
-        model.absUrl=model.currentUrl[0:model.currentUrl.__len__()-request.path.__len__()]
-        model.appUrl=model.absUrl+"/"+self.host_dir
-        model.static=model.appUrl+"/static"
-        model.redirect=redirect
-        model._ = self.res
-        model.user=request.user
-        model.csrf_token =  csrf(request)["csrf_token"]
-        model.settings =self.settings
-        if request.build_absolute_uri(self.rel_login_url).lower()!=model.currentUrl.lower():
-            if not self.on_authenticate(model):
-
-                return redirect(model.appUrl+"/"+self.rel_login_url)
-
-
+        model = self.create_client_model(request)
 
         if request.method == 'GET':
             return self.on_get(model)
@@ -278,8 +291,7 @@ class BaseController(object):
                         request.META["HTTP_AJAX_POST"],
                         self.on_get.im_func.func_code.co_filename
                     ))
-
-    def render(self,model):
+    def render_with_template(self,model,template):
         if isinstance(model,Model):
             from django.http import HttpResponse
             import os
@@ -297,11 +309,13 @@ class BaseController(object):
 
                                       )
             d=model.__dict__
-            ret_res = mylookup.get_template(self.template).render(**d)
+            ret_res = mylookup.get_template(template).render(**d)
             return HttpResponse(ret_res)
         else:
             raise Exception("{0} is not instance of {1}".format(
                 type(model),
                 Model
             ))
+    def render(self,model):
+        return self.render_with_template(model,self.template)
 

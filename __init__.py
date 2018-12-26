@@ -5,7 +5,8 @@ Package này dùng để mở rộng open edx app (dạng micro app)
 """
 __apps__={}
 __register_apps__ = {}
-__controllers__=[]
+__controllers__ = []
+__pages__ = []
 from . controllers import Model
 def create(urlpatterns):
     """
@@ -41,6 +42,17 @@ def create(urlpatterns):
                     url(r"^"+item.instance.host_dir +"/"+item.url+"$", item.instance.__view_exec__),
                     url(r"^"+item.instance.host_dir +"/"+item.url+"/$", item.instance.__view_exec__)
                 )
+            for sub_page in item.instance.sub_pages:
+                if item.url == "":
+                    urlpatterns += (
+                        url(r"^" + item.instance.host_dir+"/"+sub_page.url + "$", sub_page.exec_request_get),
+                        url(r"^" + item.instance.host_dir +"/"+sub_page.url+ "/$", sub_page.exec_request_get)
+                    )
+                else:
+                    urlpatterns += (
+                        url(r"^" + item.instance.host_dir + "/" + item.url+"/"+sub_page.url + "$", sub_page.exec_request_get),
+                        url(r"^" + item.instance.host_dir + "/" + item.url+"/"+sub_page.url + "/$", sub_page.exec_request_get)
+                    )
         # urlpatterns += (
         #     url(r'config/self_paced', ConfigurationModelCurrentAPIView.as_view(model=SelfPacedConfiguration)),
         #     url(r'config/programs', ConfigurationModelCurrentAPIView.as_view(model=ProgramsApiConfig)),
@@ -49,6 +61,7 @@ def create(urlpatterns):
         # )
     return urlpatterns
 from . controllers import BaseController,Controller
+from .page import Page
 
 def load_apps(path_to_app_dir,urlpatterns=None):
     import xdj
@@ -137,6 +150,8 @@ def load_apps(path_to_app_dir,urlpatterns=None):
             controller_instance.on_authenticate=app_settings.on_authenticate
             controller_instance.rel_login_url = app_settings.rel_login_url
             controller_instance.settings = app_settings
+
+
             from . controllers import Res
             controller_instance.res= Res(app_settings.on_get_language_resource_item,controller_instance.app_name,controller_instance.template)
 
@@ -149,6 +164,26 @@ def load_apps(path_to_app_dir,urlpatterns=None):
             """
             x=1
         return create(urlpatterns)
+
+class dobject(object):
+    def __init__(self,*args,**kwargs):
+        if args.__len__()==0:
+            for k,v in kwargs.items():
+                if isinstance(v,dict):
+                    self.__dict__.update({
+                        k:dobject(v)
+                    })
+                elif isinstance(v,list):
+                    lst =[]
+                    for item in v:
+                        lst.append(dobject(item))
+                    self.__dict__.update({
+                        k,lst
+                    })
+                else:
+                    self.__dict__.update({
+                        k:v
+                    })
 
 
 
