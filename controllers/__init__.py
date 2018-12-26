@@ -282,8 +282,13 @@ class BaseController(object):
                 try:
                     from xdj import JSON
                     model.post_data.__dict__.update(JSON.from_json(request.body))
-                    ret = getattr(self,request.META["HTTP_AJAX_POST"])(model)
-
+                    method_name = request.META["HTTP_AJAX_POST"]
+                    method_items = method_name.split('.')
+                    obj= self
+                    for i in range(0,method_items.__len__()-1):
+                        obj=getattr(obj,method_items[i])
+                    method_exec = getattr(obj,method_items[method_items.__len__()-1])
+                    ret = method_exec(model)
                     json_data = JSON.to_json(ret)
                     return HttpResponse(json_data, content_type="application/json")
                 except AttributeError as ex:
