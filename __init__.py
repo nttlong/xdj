@@ -178,7 +178,7 @@ class dobject(object):
                         for item in v:
                             lst.append(dobject(item))
                         self.__dict__.update({
-                            k,lst
+                            k:lst
                         })
                     else:
                         self.__dict__.update({
