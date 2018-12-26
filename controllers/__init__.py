@@ -218,10 +218,13 @@ class __controller_wrapper__(object):
             self.instance.sub_pages = [v for k, v in self.controllerClass.__dict__.items() if hasattr(v, "is_sub_page")]
             for item in self.instance.sub_pages:
                 item.owner=self.instance
-                def exec_request_get(request):
-                    model = item.owner.create_client_model(request)
-                    return item.owner.render_with_template(model,item.template)
-                item.exec_request_get=exec_request_get
+                class cls_exec_request(object):
+                    def __init__(self,obj):
+                        self.obj=obj
+                    def exec_request_get(self,request):
+                        model = self.obj.owner.create_client_model(request)
+                        return self.obj.owner.render_with_template(model,self.obj.template)
+                item.exec_request_get=cls_exec_request(item).exec_request_get
 
 
             xdj.__controllers__.append(self)
@@ -292,9 +295,10 @@ class BaseController(object):
                     json_data = JSON.to_json(ret)
                     return HttpResponse(json_data, content_type="application/json")
                 except AttributeError as ex:
-                    raise Exception("{0} was not found in {1}".format(
+                    raise Exception("{0} was not found in {1} or error '{2}'".format(
                         request.META["HTTP_AJAX_POST"],
-                        self.on_get.im_func.func_code.co_filename
+                        self.on_get.im_func.func_code.co_filename,
+                        ex.message
                     ))
     def render_with_template(self,model,template):
         if isinstance(model,Model):

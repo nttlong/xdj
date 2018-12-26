@@ -167,23 +167,28 @@ def load_apps(path_to_app_dir,urlpatterns=None):
 
 class dobject(object):
     def __init__(self,*args,**kwargs):
+        def feed_data(data):
+              for k,v in data.items():
+                    if isinstance(v,dict):
+                        self.__dict__.update({
+                            k:dobject(v)
+                        })
+                    elif isinstance(v,list):
+                        lst =[]
+                        for item in v:
+                            lst.append(dobject(item))
+                        self.__dict__.update({
+                            k,lst
+                        })
+                    else:
+                        self.__dict__.update({
+                            k:v
+                        })
         if args.__len__()==0:
-            for k,v in kwargs.items():
-                if isinstance(v,dict):
-                    self.__dict__.update({
-                        k:dobject(v)
-                    })
-                elif isinstance(v,list):
-                    lst =[]
-                    for item in v:
-                        lst.append(dobject(item))
-                    self.__dict__.update({
-                        k,lst
-                    })
-                else:
-                    self.__dict__.update({
-                        k:v
-                    })
+            feed_data(kwargs)
+        else:
+            feed_data(args[0])
+
 
 
 
