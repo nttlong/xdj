@@ -8,58 +8,63 @@ __register_apps__ = {}
 __controllers__ = []
 __pages__ = []
 from . controllers import Model
-def create(urlpatterns):
+def create(urls):
     """
     Tạp app
     :param name:
     :param host_dir:
     :return:
     """
-    if isinstance(urlpatterns,tuple):
-        from django.conf.urls import include, patterns, url
-        import re
-        for item in __controllers__:
-            if not __apps__.has_key(item.instance.app_name):
-                import os
-                import path
-                server_static_path = os.sep.join([
-                    item.instance.app_dir,"static"
-                ])
-                urlpatterns+=(
-                    url(r'^' + item.instance.host_dir + '/static/(?P<path>.*)$', 'django.views.static.serve',
-                        {'document_root': server_static_path, 'show_indexes': True}),
-                )
-                __apps__.update({
-                    item.instance.app_name:item.instance.app_name
-                })
-            if item.url=="":
-                urlpatterns +=(
-                    url(r"^"+item.instance.host_dir +"$",item.instance.__view_exec__),
-                    url(r"^"+item.instance.host_dir +"/$",item.instance.__view_exec__)
+    urlpatterns=()
+
+    from django.conf.urls import include, patterns, url
+    import re
+    for item in __controllers__:
+        if not __apps__.has_key(item.instance.app_name):
+            import os
+            import path
+            server_static_path = os.sep.join([
+                item.instance.app_dir,"static"
+            ])
+            urlpatterns+=(
+                url(r'^' + item.instance.host_dir + '/static/(?P<path>.*)$', 'django.views.static.serve',
+                    {'document_root': server_static_path, 'show_indexes': True}),
+            )
+            __apps__.update({
+                item.instance.app_name:item.instance.app_name
+            })
+        if item.url=="":
+            urlpatterns +=(
+                url(r"^"+item.instance.host_dir +"$",item.instance.__view_exec__),
+                url(r"^"+item.instance.host_dir +"/$",item.instance.__view_exec__)
+            )
+        else:
+            urlpatterns += (
+                url(r"^"+item.instance.host_dir +"/"+item.url+"$", item.instance.__view_exec__),
+                url(r"^"+item.instance.host_dir +"/"+item.url+"/$", item.instance.__view_exec__)
+            )
+        for sub_page in item.instance.sub_pages:
+            if item.url == "":
+                urlpatterns += (
+                    url(r"^" + item.instance.host_dir+"/"+sub_page.url + "$", sub_page.exec_request_get),
+                    url(r"^" + item.instance.host_dir +"/"+sub_page.url+ "/$", sub_page.exec_request_get)
                 )
             else:
                 urlpatterns += (
-                    url(r"^"+item.instance.host_dir +"/"+item.url+"$", item.instance.__view_exec__),
-                    url(r"^"+item.instance.host_dir +"/"+item.url+"/$", item.instance.__view_exec__)
+                    url(r"^" + item.instance.host_dir + "/" + item.url+"/"+sub_page.url + "$", sub_page.exec_request_get),
+                    url(r"^" + item.instance.host_dir + "/" + item.url+"/"+sub_page.url + "/$", sub_page.exec_request_get)
                 )
-            for sub_page in item.instance.sub_pages:
-                if item.url == "":
-                    urlpatterns += (
-                        url(r"^" + item.instance.host_dir+"/"+sub_page.url + "$", sub_page.exec_request_get),
-                        url(r"^" + item.instance.host_dir +"/"+sub_page.url+ "/$", sub_page.exec_request_get)
-                    )
-                else:
-                    urlpatterns += (
-                        url(r"^" + item.instance.host_dir + "/" + item.url+"/"+sub_page.url + "$", sub_page.exec_request_get),
-                        url(r"^" + item.instance.host_dir + "/" + item.url+"/"+sub_page.url + "/$", sub_page.exec_request_get)
-                    )
         # urlpatterns += (
         #     url(r'config/self_paced', ConfigurationModelCurrentAPIView.as_view(model=SelfPacedConfiguration)),
         #     url(r'config/programs', ConfigurationModelCurrentAPIView.as_view(model=ProgramsApiConfig)),
         #     url(r'config/catalog', ConfigurationModelCurrentAPIView.as_view(model=CatalogIntegration)),
         #     url(r'config/forums', ConfigurationModelCurrentAPIView.as_view(model=ForumsConfig)),
         # )
-    return urlpatterns
+    if isinstance(urls,tuple):
+        urls+=urlpatterns
+    if isinstance(urls, list):
+        urls.extend(list(urlpatterns))
+    return urls
 from . controllers import BaseController,Controller
 from .page import Page
 
@@ -70,8 +75,9 @@ def load_apps(path_to_app_dir,urlpatterns=None):
     import os
     import sys
     import imp
+    apply_settings()
     def get_all_sub_dir():
-        lst=os.walk(path_to_app_dir).next()[1]
+        lst=[x for x in os.walk(path_to_app_dir).next()[1] if x.find(".")==-1]
         return lst
     lst_sub_dirs = get_all_sub_dir()
     for item in lst_sub_dirs:
@@ -189,6 +195,18 @@ class dobject(object):
         else:
             feed_data(args[0])
 
-
+def apply_settings():
+    """
+    https://openedx.atlassian.net/wiki/spaces/AC/pages/34734726/edX+Feature+Flags
+    :return:
+    """
+    from django.conf import settings
+    setattr(settings,"USE_DJANGO_PIPELINE",True)
+    """
+    http://django-pipeline.readthedocs.org/ – whatever version we specify in our requirements.txt
+    """
+    setattr(settings,"DISPLAY_DEBUG_INFO_TO_STAFF",True)
+    """For large courses this slows down courseware access for staff."""
+    setattr(settings,"MILESTONES_APP",True)
 
 
