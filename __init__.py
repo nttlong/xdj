@@ -75,12 +75,15 @@ def load_apps(path_to_app_dir,urlpatterns=None):
     import os
     import sys
     import imp
+    sys.path.append(path_to_app_dir)
     apply_settings()
     def get_all_sub_dir():
         lst=[x for x in os.walk(path_to_app_dir).next()[1] if x.find(".")==-1]
         return lst
     lst_sub_dirs = get_all_sub_dir()
     for item in lst_sub_dirs:
+        full_path_to_app = os.sep.join([path_to_app_dir,item])
+        sys.path.append(full_path_to_app)
         controller_dir = os.sep.join([path_to_app_dir,item,"controllers"])
         if not hasattr(xdj,"apps"):
             setattr(xdj,"apps",imp.new_module("xdj.apps"))
@@ -169,6 +172,7 @@ def load_apps(path_to_app_dir,urlpatterns=None):
                 raise Exception("{0} do not have 'app_dir'".format(self.controllerClass))
             """
             x=1
+
         return create(urlpatterns)
 
 class dobject(object):

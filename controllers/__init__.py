@@ -248,9 +248,7 @@ def __createModelFromRequest__(request,rel_login_url,res,host_dir,on_authenticat
     model.user = request.user
     model.csrf_token = csrf(request)["csrf_token"]
     model.settings = settings
-    if request.build_absolute_uri(rel_login_url).lower() != model.currentUrl.lower():
-        if not on_authenticate(model):
-            return redirect(model.appUrl + "/" + rel_login_url)
+
     return model
 def Controller(*args,**kwargs):
     ret = __controller_wrapper__(*args,**kwargs)
@@ -271,8 +269,11 @@ class BaseController(object):
         return model
     def __view_exec__(self,request):
         from django.http import HttpResponse
+        from django.shortcuts import redirect
         model = self.create_client_model(request)
-
+        if request.build_absolute_uri(self.rel_login_url).lower() != model.currentUrl.lower():
+            if not self.on_authenticate(model):
+                return redirect(model.appUrl + "/" + self.rel_login_url)
         if request.method == 'GET':
             return self.on_get(model)
         if request.method == 'POST':
