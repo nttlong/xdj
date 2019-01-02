@@ -267,7 +267,7 @@ class BaseController(object):
             request, self.rel_login_url, self.res, self.host_dir, self.on_authenticate, self.settings
         )
         return model
-    def __view_exec__(self,request):
+    def __view_exec__(self,request,*args,**kwargs):
         from django.http import HttpResponse
         from django.shortcuts import redirect
         model = self.create_client_model(request)
