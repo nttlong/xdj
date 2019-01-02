@@ -182,6 +182,9 @@ class ModelUser(object):
         self.is_active=False
     def is_anonymous(self):
         return
+def toJson(data):
+    from xdj import JSON
+    return JSON.to_json(data)
 class Model(object):
     def __init__(self):
         self.request = None
@@ -194,6 +197,9 @@ class Model(object):
         self.csrf_token = None
         self.post_data= PostData();
         self.settings=None
+        self.toJson=toJson
+        self.params = None
+        """Parameter from url ex:email_confirm/(?P<key>[^/]*) params.key"""
 
     def debugger(self):
         print "debugger"
@@ -268,9 +274,11 @@ class BaseController(object):
         )
         return model
     def __view_exec__(self,request,*args,**kwargs):
+        import xdj
         from django.http import HttpResponse
         from django.shortcuts import redirect
         model = self.create_client_model(request)
+        model.params = xdj.dobject(kwargs)
         if request.build_absolute_uri(self.rel_login_url).lower() != model.currentUrl.lower():
             if not self.on_authenticate(model):
                 return redirect(model.appUrl + "/" + self.rel_login_url)

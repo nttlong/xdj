@@ -173,7 +173,7 @@ def load_apps(path_to_app_dir,urlpatterns=None):
             """
             x=1
 
-        return create(urlpatterns)
+    return create(urlpatterns)
 
 class dobject(object):
     def __init__(self,*args,**kwargs):
